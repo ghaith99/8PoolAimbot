@@ -55,13 +55,19 @@ def stickLineDetection(canny_image, original_image):
   # threshold = cv2.getTrackbarPos('threshold','HoughLine Settings')
   # minLineLength = cv2.getTrackbarPos('minLineLength','HoughLine Settings')
   # maxLineGap = cv2.getTrackbarPos('maxLineGap','HoughLine Settings')
-  houghImage = canny_image.copy()
+  houghImage = np.zeros_like(original_image)
   lines = cv2.HoughLinesP(canny_image, 1, np.pi/180,125, np.array([]),minLineLength=14, maxLineGap=30)
+  size = [] 
   if lines is not None:
     for line in lines:
       x1, y1, x2, y2 = line[0]
-      cv2.line(original_image, (x1, y1), (x2, y2), (0, 255, 0), 5)
-  cv2.imshow("HoughLines", original_image)
+      size.append((y2-y1)**2+ (x2-x1)**2)  #calculate line length
+  
+  #Filter out only longest line coordinates
+  x1, y1, x2, y2 = lines[size.index(max(size))].reshape(4)
+  
+  cv2.line(houghImage, (x1, y1), (x2, y2), (0, 0, 255), 5)
+  cv2.imshow("HoughLines", houghImage)
   return lines
 
 
@@ -80,13 +86,30 @@ def morph(image):
 def make_coordinates(image, fit_lines_average):
   slope, intercept = fit_lines_average
 
-  y1 = image.shape[0]
-  y2 = int(y1*(4/5))
-  x1 = int((y1 - intercept)/slope)
-  x2 = int((y2 - intercept)/slope)
+  y1 = int(intercept)
+  y2 = int(y1*(2/5))
+  x1 = 40
+  x2 = 1000
+  #y1 = slope*x1 + intercept
+  #y2 = slope*x2 + intercept  
+  # x1 = int((y1 - intercept)/slope)
+  # x2 = int((y2 - intercept)/slope)
   return np.array([x1,y1,x2,y2])
 
 
+def longerLine(image, lines) :
+  size = []
+  for line in lines:
+    x1, y1, x2, y2 = line.reshape(4)
+    size.append((y2-y1)**2+ (x2-x1)**2)  
+  # return only longest line coordinates
+  x1, y1, x2, y2 = lines[size.index(max(size))].reshape(4)
+  parameters = np.polyfit((x1,x2), (y1,y2), 1)
+  slope = parameters[0]
+  intercept = parameters[1]
+
+  return make_coordinates(image, [slope, intercept]) 
+    
 def average_slope_intercept(image , lines):
   fitLines = [] 
 
@@ -96,7 +119,7 @@ def average_slope_intercept(image , lines):
     slope = parameters[0]
     intercept = parameters[1]
     fitLines.append((slope, intercept))
-    
+
   fit_lines_average = np.average(fitLines, axis = 0)
   
   return make_coordinates(image, fit_lines_average)
@@ -106,7 +129,7 @@ def display_stick(image, line):
   if line is not None:
     x1, y1, x2, y2 = line.reshape(4)
     print('x1: %d, y1:%d, x2:%d, y2:%d'%(x1, y1, x2, y2) )
-    cv2.line(stickLine_image, (x1,y1), (x2,y2), (255,0,0), 5)     
+    cv2.line(stickLine_image, (x1,y1), (x2,y2), (0,255,0), 5)     
   return stickLine_image
 
 
@@ -121,21 +144,21 @@ while (1):
   board = image.copy()
   #1
   stickColorIsolate_img = stickColorIsolate(board)
-  #cv2.imshow("Stick_Image>Color Iso", stickColorIsolate_img)
+  cv2.imshow("1- Stick_Image>Color Iso", stickColorIsolate_img)
   
   #morph(stickColorIsolate_img)
   
   #2
   canny_image = canny(stickColorIsolate_img, 250, 250)# threshold1= threshold1, threshold2 = threshold2)
-  #cv2.imshow("Canny_Image", canny_image)
+  cv2.imshow("2- Canny_Image", canny_image)
   
   #3
   lines = stickLineDetection(canny_image, board)
-  line = average_slope_intercept(board, lines)
-  stick_average = display_stick(board, line)
-  averaged_combined_image = cv2.addWeighted(board, 0.8, stick_average, 1, 1)
   
-  cv2.imshow("Averaged Hough", averaged_combined_image)
+  # lineLong = longerLine(board, lines)  
+  # stick_long = display_stick(board, lineLong)
+  # long_combined_image = cv2.addWeighted(board, 0.8, stick_long, 1, 1)
+  # cv2.imshow("long Hough", long_combined_image)
 
   #cv2.imshow("Color Iso>Hough", houghStick)
   if cv2.waitKey(100) == 13:
