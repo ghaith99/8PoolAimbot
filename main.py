@@ -59,7 +59,7 @@ def stickLineDetection(canny_image, original_image):
 #  lines = cv2.HoughLinesP(canny_image, 1, np.pi/180,125, np.array([]),minLineLength=14, maxLineGap=30)
   lines = cv2.HoughLinesP(canny_image, 1, np.pi/180,2, np.array([]),minLineLength=74, maxLineGap=19)
   size = [] 
-  longLine = []
+  longLine = None
   if lines is not None:
     for line in lines:
       x1, y1, x2, y2 = line[0]
@@ -139,8 +139,8 @@ def display_stick(image, line):
   return stickLine_image
 
 def extendHough(image, line):
-  x1, y1, x2, y2 = line
   print(line)
+  x1, y1, x2, y2 = line
   #print("Slope: "+ str(np.polyfit((x1,x2), (y1,y2), 1)[0]))
   params = np.polyfit((x1,x2), (y1,y2), 1)
   slope = params[0]
@@ -158,12 +158,19 @@ def extendHough(image, line):
   cv2.imshow("Extended", extended)
   
 
-image = cv2.imread('img4.jpg')
+from PIL import ImageGrab
+
+image = cv2.imread('img5.jpg')
+
 # plt.imshow(image)
 # plt.show()
 
 while (1):
-
+  printscreen =  ImageGrab.grab()
+  image =   np.array(printscreen .getdata(),dtype='uint8')\
+      .reshape((printscreen.size[1],printscreen.size[0],3)) 
+  image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    
   threshold1 = cv2.getTrackbarPos('threshold1','Canny_settings')
   threshold2 = cv2.getTrackbarPos('threshold2','Canny_settings')
   board = image.copy()
