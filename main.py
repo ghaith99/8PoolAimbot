@@ -16,8 +16,6 @@ def canny(image, threshold1 = 33,threshold2 = 0) :
   return canny
 
 #HSV values
-# max_value_H = int(360/2)
-# max_value = 255
 # low_H = 0; high_H = max_value_H
 # low_S = 0; high_S = max_value
 # low_V = 0; high_V = max_value
@@ -45,30 +43,38 @@ def stickColorIsolate(image):
   #cv2.imshow("mask", mask)
   return mask
 
-
+# max_value_H = int(360/2)
+# max_value = 255
 # cv2.namedWindow('HoughLine Settings')
-# cv2.createTrackbar('threshold','HoughLine Settings',  low_H, max_value_H,nothing)
-# cv2.createTrackbar('minLineLength','HoughLine Settings', high_H, max_value_H,nothing)
-# cv2.createTrackbar('maxLineGap','HoughLine Settings',  low_S,max_value,nothing)
+# cv2.createTrackbar('threshold','HoughLine Settings',  0, max_value_H,nothing)
+# cv2.createTrackbar('minLineLength','HoughLine Settings', 0, max_value_H,nothing)
+# cv2.createTrackbar('maxLineGap','HoughLine Settings',  0,max_value,nothing)
 
 def stickLineDetection(canny_image, original_image):
   # threshold = cv2.getTrackbarPos('threshold','HoughLine Settings')
   # minLineLength = cv2.getTrackbarPos('minLineLength','HoughLine Settings')
   # maxLineGap = cv2.getTrackbarPos('maxLineGap','HoughLine Settings')
   houghImage = np.zeros_like(original_image)
-  lines = cv2.HoughLinesP(canny_image, 1, np.pi/180,125, np.array([]),minLineLength=14, maxLineGap=30)
+#  lines = cv2.HoughLinesP(canny_image, 1, np.pi/180,threshold, np.array([]),minLineLength=minLineLength, maxLineGap=maxLineGap)
+#  lines = cv2.HoughLinesP(canny_image, 1, np.pi/180,125, np.array([]),minLineLength=14, maxLineGap=30)
+  lines = cv2.HoughLinesP(canny_image, 1, np.pi/180,2, np.array([]),minLineLength=74, maxLineGap=19)
   size = [] 
+  longLine = []
   if lines is not None:
     for line in lines:
       x1, y1, x2, y2 = line[0]
       size.append((y2-y1)**2+ (x2-x1)**2)  #calculate line length
   
-  #Filter out only longest line coordinates
-  x1, y1, x2, y2 = lines[size.index(max(size))].reshape(4)
-  
-  cv2.line(houghImage, (x1, y1), (x2, y2), (0, 0, 255), 5)
+    #Filter out only longest line coordinates
+    longLine = lines[size.index(max(size))].reshape(4)
+    x1, y1, x2, y2 = longLine
+    #print("Slope: "+ str(np.polyfit((x1,x2), (y1,y2), 1)[0]))
+    cv2.line(houghImage, (x1, y1), (x2, y2), (0, 0, 255), 2)
+    cv2.line(original_image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+
   cv2.imshow("HoughLines", houghImage)
-  return lines
+  cv2.imshow("Original+HoughLines", original_image)
+  return longLine
 
 
 # cv2.namedWindow('morph_settings')
@@ -132,10 +138,29 @@ def display_stick(image, line):
     cv2.line(stickLine_image, (x1,y1), (x2,y2), (0,255,0), 5)     
   return stickLine_image
 
+def extendHough(image, line):
+  x1, y1, x2, y2 = line
+  print(line)
+  #print("Slope: "+ str(np.polyfit((x1,x2), (y1,y2), 1)[0]))
+  params = np.polyfit((x1,x2), (y1,y2), 1)
+  slope = params[0]
+  intercept = params[1]
+  slopeDir = np.sign(np.polyfit((x1,x2), (y1,y2), 1)[0])
+  x2 = 1500   
+  x1 = 0
+  y1 = int(x1*slope + intercept)
+  y2 = int(x2*slope + intercept)
+  
+   
+  extended = image.copy()
+  print(str(x1)+"->x1, "+str(y1)+"->y1, "+str(x2)+"->x2, "+str(y2)+"->y2")
+  cv2.line(extended, (x1,y1), (x2,y2), (0,255,0), 1)   
+  cv2.imshow("Extended", extended)
+  
 
-image = cv2.imread('img.jpg')
-plt.imshow(image)
-plt.show()
+image = cv2.imread('img4.jpg')
+# plt.imshow(image)
+# plt.show()
 
 while (1):
 
@@ -153,10 +178,10 @@ while (1):
   cv2.imshow("2- Canny_Image", canny_image)
   
   #3
-  lines = stickLineDetection(canny_image, board)
-  
-  # lineLong = longerLine(board, lines)  
-  # stick_long = display_stick(board, lineLong)
+  line = stickLineDetection(canny_image, board)
+  if line is not None:
+    extendHough(image, line)
+   
   # long_combined_image = cv2.addWeighted(board, 0.8, stick_long, 1, 1)
   # cv2.imshow("long Hough", long_combined_image)
 
